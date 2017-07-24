@@ -44,5 +44,60 @@ doc illustrates this process nicely.
 
 ![data loading](https://www.tensorflow.org/images/AnimatedFileQueues.gif)
 
+# **Dirty our hand a little bit**
+
+Now it's the time to write some code. We are going to use an OOP approach which
+is using an object to encapsulate the whole loading pipeline. First of all, we
+need a class skeleton. In this case, it's pretty simple, since we only need a
+constructor, a get batch function and and some helper "private" functions. The
+code looks like this:
+
+```python
+class MultiThrdLoader(object):
+
+    def __init__(self, sess, data_root, img_dir, label_csv, file_idxs, \
+                    data_shape=(256, 256, 3), label_shape=(17), num_thrds=10):
+        pass
+
+    def _process_labels(self):
+        pass
+
+    def _process_labels(self):
+        pass
+
+    def get_batch_op(self, n):
+        pass
+
+    def stop(self):
+        pass
+
+```
+
+# **Dig deeper**
+
+Next we need to fill in the body of the functions. We will start with the
+constructor
+
+Constructor assumes the responsibility of creating queues and starting the
+threads. We begin with saving the parameters, which has little excitement at all.
+
+```python
+self.data_root = data_root
+self.label_csv = os.path.join(data_root, label_csv)
+self.img_dir = os.path.join(data_root, img_dir)
+self.data_shape = data_shape
+self.label_shape = label_shape
+self.sess = sess
+```
+
+Then comes the fun parts of creating the queues. But before we create any queue, we
+want to declare a coordinator with [`tf.train.Coordinator()`](https://www.tensorflow.org/api_docs/python/tf/train/Coordinator).
+According to the Tensorflow official doc, the coordinator implements a simple mechanism to
+coordinate the termination of a set of threads. So, basically a coordinator is just
+a shared (global) thread-safe flag between threads denotes whether it's time to terminate.
+
+```python
+self.coord = tf.train.Coordinator()
+```
 
 

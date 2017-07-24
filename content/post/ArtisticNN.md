@@ -19,8 +19,8 @@ Checklist for dependencies:
 The following bash code will automatically download the models. VGG19 is approximately 510M and VGG16 is approximately 491M. Comment out using "#" if you already have the model downloaded somewhere else. But don't forget to change the model path later (you will see it).
 
 ```bash
-!if [ ! -e "models/imagenet-vgg-verydeep-19.mat" ]; then echo "VGG19 does not exist"; \
-    wget -P models/ http://www.vlfeat.org/matconvnet/models/imagenet-vgg-verydeep-19.mat; fi
-!if [ ! -e "models/imagenet-vgg-verydeep-16.mat" ]; then echo "VGG16 does not exist"; \
+if [ ! -e "models/imagenet-vgg-verydeep-19.mat" ]; then echo "VGG19 does not exist"; \
+   wget -P models/ http://www.vlfeat.org/matconvnet/models/imagenet-vgg-verydeep-19.mat; fi
+if [ ! -e "models/imagenet-vgg-verydeep-16.mat" ]; then echo "VGG16 does not exist"; \
     wget -P models/ http://www.vlfeat.org/matconvnet/models/imagenet-vgg-verydeep-16.mat; fi
 ```
