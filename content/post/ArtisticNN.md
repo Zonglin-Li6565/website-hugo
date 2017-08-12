@@ -1,6 +1,7 @@
 ---
 title: "ArtisticNN"
 date: 2017-07-15T10:27:55-05:00
+draft: true
 ---
 
 # Introduction
