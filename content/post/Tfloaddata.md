@@ -62,7 +62,7 @@ class MultiThrdLoader(object):
     def _process_labels(self):
         pass
 
-    def _process_labels(self):
+    def _load_worker(self, sess):
         pass
 
     def get_batch_op(self, n):
@@ -114,3 +114,61 @@ fn_thrds = self.fn_qr.create_threads(sess, coord=self.coord, start=True)
 ```
 
 First, we generate the one-hot representation of the labels and the integer id for each image file (since we can easily map them back to the actual file names). Then we create a [`tf.RandomShuffleQueue`](https://www.tensorflow.org/api_docs/python/tf/RandomShuffleQueue) instance with capacity of 10000 (this value doesn't really matter since enqueuing file ids doesn't take too much time). To enqueue values as a batch, we use the [`enqueue_many`](https://www.tensorflow.org/api_docs/python/tf/RandomShuffleQueue#enqueue_many) function, which returns a tensor. Note that simply calling `enqueue_many` won't actually do the enqueue operation. Only when you evaluate the returned tensor will get those values into the queue. Lastly, the [`tf.train.QueueRunner`](https://www.tensorflow.org/api_docs/python/tf/train/QueueRunner) is a thread runs the enqueue tensor and [`create_threads`](https://www.tensorflow.org/api_docs/python/tf/train/QueueRunner#create_threads) starts the threads. Since here we are enqueuing the same values all the time, the generic runner is fine.
+
+## Create a FIFO data queue
+
+```python
+self.data_q = tf.FIFOQueue(500, dtypes=[tf.float32, tf.float32, tf.int32], shapes=[data_shape, label_shape, ()])
+self.X_holder = tf.placeholder(tf.float32)
+self.y_holder = tf.placeholder(tf.float32)
+self.idx_holder = tf.placeholder(tf.int32)
+self.enqueue = self.data_q.enqueue([self.X_holder, self.y_holder, self.idx_holder])
+self.fdx_dequeue = self.file_idx_q.dequeue()
+self.threads = [threading.Thread(target=self._load_worker, args=(sess,)) for i in range(num_thrds)]
+```
+
+Same idea as the file id queue, we create an enqueue operation tensor. The different is, instead of using a fixed value, we use placeholders, which we can populate later. This gives a lot of convenience for the loader worker threads. Another difference is the threads. Here we are manually creating threads with the loader function. Also we get an instance of dequeue operation for the loader function.
+
+## The loader function
+
+```python
+def _load_worker(self, sess):
+    while not self.coord.should_stop():
+        # dequeue one filename from the file name queue
+        idx = sess.run(self.fdx_dequeue)
+        # load the image
+        X = np.ndarray(self.data_shape)
+        y = np.ndarray(self.label_shape)
+        file_path = os.path.join(self.img_dir, self.file_ids[idx] + ".jpg")
+        X = io.imread(file_path)
+        y = self.y[idx]
+        try:
+            sess.run(self.enqueue, feed_dict={
+                self.X_holder: X,
+                self.y_holder: y,
+                self.idx_holder: idx
+                })
+        except tf.errors.CancelledError:
+            return
+```
+
+In the dequeue function, several things are interesting. First,
+
+```python
+idx = sess.run(self.fdx_dequeue)
+```
+
+will perform dequeue action on the file id queue. Second is the way we are enqueuing the images. We wrap the whole enqueue operation in a `try except` block since evaluating enqueue tensor is blocking, therefore we can't terminate the thread if it's blocked on enqueue, unless we set `cancel_pending_enqueues` to be true when closing the queue. We'll get the `tf.errors.CancelledError` exception if enqueue has been cancelled.
+
+## The stop function
+
+```python
+def stop(self):
+    self.coord.request_stop()
+    d_q_clos = self.data_q.close(cancel_pending_enqueues=True)
+    self.sess.run(d_q_clos)
+    self.coord.join(self.threads)
+```
+This function is for clean exit. Since we have a lot of threads, we need a way to stop them before exit. With the help of the coordinator, this will be easy, just don't forget to evaluate the returned tensor for closing queue.
+
+This is all we need to do in order to load large dataset in Tensorflow. Also, checkout the full code on [Github](https://github.com/Zonglin-Li6565/Kaggle-Amazon)
