@@ -91,13 +91,26 @@ self.sess = sess
 ```
 
 Then comes the fun parts of creating the queues. But before we create any queue, we
-want to declare a coordinator with [`tf.train.Coordinator()`](https://www.tensorflow.org/api_docs/python/tf/train/Coordinator).
+want to define a coordinator with [`tf.train.Coordinator()`](https://www.tensorflow.org/api_docs/python/tf/train/Coordinator).
 According to the Tensorflow official doc, the coordinator implements a simple mechanism to
-coordinate the termination of a set of threads. So, basically a coordinator is just
-a shared (global) thread-safe flag between threads denotes whether it's time to terminate.
+coordinate the termination of a set of threads. You can think it as a global shared flag variable passing information from the main thread to the spawned threads.
 
 ```python
 self.coord = tf.train.Coordinator()
 ```
 
+For our training task, we would like the batches to be randomly created to meet the stochastic assumption of the optimization algorithm. There are two options, either randomly suffle the file identifiers or suffle the loaded images. We are going for the first one.
 
+## Create a randomly shffled file id queue
+
+```python
+self.y, self.file_ids = self._process_labels()
+
+self.file_idx_q = tf.RandomShuffleQueue(10000, 0, dtypes=[tf.int32], shapes=[()])
+self.eq_fn_op = self.file_idx_q.enqueue_many([file_idxs])
+
+self.fn_qr = tf.train.QueueRunner(self.file_idx_q, [self.eq_fn_op])
+fn_thrds = self.fn_qr.create_threads(sess, coord=self.coord, start=True)
+```
+
+First, we generate the one-hot representation of the labels and the integer id for each image file (since we can easily map them back to the actual file names). Then we create a [`tf.RandomShuffleQueue`](https://www.tensorflow.org/api_docs/python/tf/RandomShuffleQueue) instance with capacity of 10000 (this value doesn't really matter since enqueuing file ids doesn't take too much time). To enqueue values as a batch, we use the [`enqueue_many`](https://www.tensorflow.org/api_docs/python/tf/RandomShuffleQueue#enqueue_many) function, which returns a tensor. Note that simply calling `enqueue_many` won't actually do the enqueue operation. Only when you evaluate the returned tensor will get those values into the queue. Lastly, the [`tf.train.QueueRunner`](https://www.tensorflow.org/api_docs/python/tf/train/QueueRunner) is a thread runs the enqueue tensor and [`create_threads`](https://www.tensorflow.org/api_docs/python/tf/train/QueueRunner#create_threads) starts the threads. Since here we are enqueuing the same values all the time, the generic runner is fine.
