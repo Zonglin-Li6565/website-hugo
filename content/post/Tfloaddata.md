@@ -171,4 +171,4 @@ def stop(self):
 ```
 This function is for clean exit. Since we have a lot of threads, we need a way to stop them before exit. With the help of the coordinator, this will be easy, just don't forget to evaluate the returned tensor for closing queue.
 
-This is all we need to do in order to load large dataset in Tensorflow. Also, checkout the full code on [Github](https://github.com/Zonglin-Li6565/Kaggle-Amazon)
+This is all we need to do in order to load large dataset in Tensorflow. Also, checkout the full code on [Github](https://github.com/Zonglin-Li6565/Kaggle-Amazon). The [multithrdloader.py](https://github.com/Zonglin-Li6565/Kaggle-Amazon/blob/master/multithrdloader.py) contains the full loader and [train.py](https://github.com/Zonglin-Li6565/Kaggle-Amazon/blob/master/train.py) contains the actual training code.
